@@ -1,28 +1,137 @@
-# Mask R-CNN for Object Detection and Segmentation
+# Mask R-CNN for Object Detection and Segmentation using TensorFlow 2.0
 
-This is an implementation of [Mask R-CNN](https://arxiv.org/abs/1703.06870) on Python 3, Keras, and TensorFlow. The model generates bounding boxes and segmentation masks for each instance of an object in the image. It's based on Feature Pyramid Network (FPN) and a ResNet101 backbone.
+The [Mask-RCNN-TF2](https://github.com/ahmedfgad/Mask-RCNN-TF2) project edits the original [Mask_RCNN](https://github.com/matterport/Mask_RCNN) project, which only supports TensorFlow 1.0, so that it works on TensorFlow 2.0. Based on this new project, the [Mask R-CNN](https://arxiv.org/abs/1703.06870) can be trained and tested (i.e make predictions) in TensorFlow 2.0. The Mask R-CNN model generates bounding boxes and segmentation masks for each instance of an object in the image. It's based on Feature Pyramid Network (FPN) and a ResNet101 backbone.
+
+Compared to the source code of the old [Mask_RCNN](https://github.com/matterport/Mask_RCNN) project, the [Mask-RCNN-TF2](https://github.com/ahmedfgad/Mask-RCNN-TF2) project edits the following 2 modules:
+
+1. `model.py`
+2. `utils.py`
+
+The [Mask-RCNN-TF2](https://github.com/ahmedfgad/Mask-RCNN-TF2) project is tested against **TensorFlow 2.0.0**, **Keras 2.2.4** (also **Keras 2.3.1**), and **Python 3.7.3** (also **Python 3.6.9** and **Python 3.6.13**). Note that the project will not run in TensorFlow 1.0.
+
+# Use the Project Without Installation
+
+It is not required to install the project. It is enough to copy the `mrcnn` directory to where you are using it.
+
+Here are the steps to use the project for making predictions:
+
+1. Create a root directory (e.g. **Object Detection**)
+2. Copy the [mrcnn](https://github.com/ahmedfgad/Mask-RCNN-TF2/tree/master/mrcnn) directory inside the root directory.
+3. Download the pre-trained weights inside the root directory. The weights can be downloaded from [this link](https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5): https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5.
+4. Create a script for object detection and save it inside the root directory. This script is an example: [samples/mask-rcnn-prediction.py](samples/mask-rcnn-prediction.py). Its code is listed in the next section.
+5. Run the script.
+
+The directory tree of the project is as follows:
+
+```
+Object Detection:
+	mrcnn:
+	mask_rcnn_coco.h5
+	mask-rcnn-prediction.py
+```
+
+# Code for Prediction/Inference
+
+The next code uses the pre-trained weights of the Mask R-CNN model based on the COCO dataset. The trained weights can be downloaded from [this link](https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5): https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5. The code is accessible through the [samples/mask-rcnn-prediction.py](samples/mask-rcnn-prediction.py) script.
+
+The COCO dataset has 80 classes. There is an additional class for the background named **BG**. Thus, the total number of classes is 81. The classes names are listed in the `CLASS_NAMES` list. **DO NOT CHANGE THE ORDER OF THE CLASSES**.
+
+After making prediction, the code displays the input image after drawing the bounding boxes, masks, class labels, and prediction scores over all detected objects.
+
+```python
+import mrcnn
+import mrcnn.config
+import mrcnn.model
+import mrcnn.visualize
+import cv2
+import os
+
+# load the class label names from disk, one label per line
+# CLASS_NAMES = open("coco_labels.txt").read().strip().split("\n")
+
+CLASS_NAMES = ['BG', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush']
+
+class SimpleConfig(mrcnn.config.Config):
+    # Give the configuration a recognizable name
+    NAME = "coco_inference"
+    
+    # set the number of GPUs to use along with the number of images per GPU
+    GPU_COUNT = 1
+    IMAGES_PER_GPU = 1
+
+	# Number of classes = number of classes + 1 (+1 for the background). The background class is named BG
+    NUM_CLASSES = len(CLASS_NAMES)
+
+# Initialize the Mask R-CNN model for inference and then load the weights.
+# This step builds the Keras model architecture.
+model = mrcnn.model.MaskRCNN(mode="inference", 
+                             config=SimpleConfig(),
+                             model_dir=os.getcwd())
+
+# Load the weights into the model.
+# Download the mask_rcnn_coco.h5 file from this link: https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5
+model.load_weights(filepath="mask_rcnn_coco.h5", 
+                   by_name=True)
+
+# load the input image, convert it from BGR to RGB channel
+image = cv2.imread("sample_image.jpg")
+image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+# Perform a forward pass of the network to obtain the results
+r = model.detect([image], verbose=0)
+
+# Get the results for the first image.
+r = r[0]
+
+# Visualize the detected objects.
+mrcnn.visualize.display_instances(image=image, 
+                                  boxes=r['rois'], 
+                                  masks=r['masks'], 
+                                  class_ids=r['class_ids'], 
+                                  class_names=CLASS_NAMES, 
+                                  scores=r['scores'])
+```
+
+# Transfer Learning
+
+The **kangaroo-transfer-learning** directory has both the data and code for training and testing the Mask R-CNN model using TensorFlow 2.0. Here is the content of the directory:
+
+```
+kangaroo-transfer-learning:
+	kangaroo:
+		images:
+		annots:
+	kangaroo_training.py
+	kangaroo_prediction.py
+```
+
+The `kangaroo_training.py` script does transfer learning to a pre-trained weights using the COCO dataset. Download these weights from [here](https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5): https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5
+
+After the transfer learning completes, the trained weights are saved in the `Kangaro_mask_rcnn_trained.h5` file. 
+
+The `kangaroo_prediction.py` makes prediction based on the trained weights.
+
+![Kangaroo Test Image](assets/kangaro-test.png)
+
+Note that the [Mask-RCNN-TF2](https://github.com/ahmedfgad/Mask-RCNN-TF2) project uses the same training and testing code as in the old project.
 
 ![Instance Segmentation Sample](assets/street.png)
 
 The repository includes:
-* Source code of Mask R-CNN built on FPN and ResNet101.
+* Source code of Mask R-CNN built on FPN and ResNet101 inside the `mrcnn` directory.
 * Training code for MS COCO
-* Pre-trained weights for MS COCO
 * Jupyter notebooks to visualize the detection pipeline at every step
 * ParallelModel class for multi-GPU training
 * Evaluation on MS COCO metrics (AP)
 * Example of training on your own dataset
 
-
-The code is documented and designed to be easy to extend. If you use it in your research, please consider citing this repository (bibtex below). If you work on 3D vision, you might find our recently released [Matterport3D](https://matterport.com/blog/2017/09/20/announcing-matterport3d-research-dataset/) dataset useful as well.
-This dataset was created from 3D-reconstructed spaces captured by our customers who agreed to make them publicly available for academic use. You can see more examples [here](https://matterport.com/gallery/).
+The code is documented and designed to be easy to extend. If you use it in your research, please consider citing this repository (bibtex below).
 
 # Getting Started
-* [demo.ipynb](samples/demo.ipynb) Is the easiest way to start. It shows an example of using a model pre-trained on MS COCO to segment objects in your own images.
-It includes code to run object detection and instance segmentation on arbitrary images.
-
+* [mask-rcnn-prediction.py](samples/mask-rcnn-prediction.py): A script for loading the pre-trained weights and making predictions using the Mask R-CNN model.
+* [coco_labels.txt](samples/coco_labels.txt): The class labels of the COCO dataset.
+* [demo.ipynb](samples/demo.ipynb) Is the easiest way to start. It shows an example of using a model pre-trained on MS COCO to segment objects in your own images. It includes code to run object detection and instance segmentation on arbitrary images.
 * [train_shapes.ipynb](samples/shapes/train_shapes.ipynb) shows how to train Mask R-CNN on your own dataset. This notebook introduces a toy dataset (Shapes) to demonstrate training on a new dataset.
-
 * ([model.py](mrcnn/model.py), [utils.py](mrcnn/utils.py), [config.py](mrcnn/config.py)): These files contain the main Mask RCNN implementation. 
 
 
@@ -39,8 +148,6 @@ This notebooks inspects the weights of a trained model and looks for anomalies a
 To help with debugging and understanding the model, there are 3 notebooks 
 ([inspect_data.ipynb](samples/coco/inspect_data.ipynb), [inspect_model.ipynb](samples/coco/inspect_model.ipynb),
 [inspect_weights.ipynb](samples/coco/inspect_weights.ipynb)) that provide a lot of visualizations and allow running the model step by step to inspect the output at each point. Here are a few examples:
-
-
 
 ## 1. Anchor sorting and filtering
 Visualizes every step of the first stage Region Proposal Network and displays positive and negative anchors along with anchor box refinement.
@@ -164,7 +271,7 @@ Contributions to this repository are welcome. Examples of things you can contrib
 You can also [join our team](https://matterport.com/careers/) and help us build even more projects like this one.
 
 ## Requirements
-Python 3.4, TensorFlow 1.3, Keras 2.0.8 and other common packages listed in `requirements.txt`.
+Python 3 (tested on Python 3.7.3), TensorFlow 2.0.0, Keras 2.2.4-tf and other common packages listed in `requirements.txt`.
 
 ### MS COCO Requirements:
 To train or test on MS COCO, you'll also need:
@@ -187,7 +294,7 @@ If you use Docker, the code has been verified to work on
 3. Run setup from the repository root directory
     ```bash
     python3 setup.py install
-    ``` 
+    ```
 3. Download pre-trained COCO weights (mask_rcnn_coco.h5) from the [releases page](https://github.com/matterport/Mask_RCNN/releases).
 4. (Optional) To train or test on MS COCO install `pycocotools` from one of these repos. They are forks of the original pycocotools with fixes for Python3 and Windows (the official repo doesn't seem to be active anymore).
 
